@@ -4,7 +4,9 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm install
+RUN npm install && \
+    npm install @supabase/ssr @supabase/supabase-js && \
+    npm cache clean --force
 
 COPY . .
 

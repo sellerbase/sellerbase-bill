@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabaseBrowserClient } from '@/lib/supabase';
 import { User } from '@/types/user';
+import Link from 'next/link';
 
 export default function DashboardLayout({
   children,
@@ -102,11 +103,19 @@ export default function DashboardLayout({
       <div className="flex">
         <aside className="w-64 bg-white shadow-lg h-screen">
           <div className="p-4">
-            <nav>
-              <a href="/dashboard" className="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-100">
+            <nav className="space-y-2">
+              <Link
+                href="/dashboard"
+                className="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-100"
+              >
                 ダッシュボード
-              </a>
-              {/* 他のメニューアイテムはここに追加 */}
+              </Link>
+              <Link
+                href="/invoice-editor"
+                className="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-100"
+              >
+                請求書エディタ
+              </Link>
             </nav>
           </div>
         </aside>

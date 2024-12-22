@@ -8,11 +8,11 @@ export default function InvoiceEditorLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       {/* ヘッダー */}
-      <header className="bg-white shadow">
+      <header className="bg-gradient-to-r from-blue-600 to-indigo-700 shadow-lg">
         <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
-          <h1 className="text-2xl font-bold text-gray-900">請求書エディタ</h1>
+          <h1 className="text-2xl font-bold text-white">請求書エディタ</h1>
         </div>
       </header>
 

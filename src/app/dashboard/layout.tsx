@@ -19,14 +19,12 @@ export default function DashboardLayout({
     const fetchUser = async () => {
       const supabase = getSupabaseBrowserClient();
       
-      // セッションからユーザー情報を取得
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         router.push('/auth');
         return;
       }
 
-      // プロフィール情報を取得
       const { data: profile } = await supabase
         .from('profiles')
         .select('*')
@@ -52,25 +50,25 @@ export default function DashboardLayout({
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow-lg">
+    <div className="min-h-screen bg-slate-50">
+      <nav className="bg-gradient-to-r from-blue-600 to-indigo-700 shadow-lg">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex justify-between h-16">
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
-                <span className="text-xl font-bold">SellerBase</span>
+                <span className="text-xl font-bold text-white">SellerBase</span>
               </div>
             </div>
             <div className="flex items-center">
               <div className="relative">
                 <button
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
-                  className="flex items-center space-x-2 p-2 rounded-md text-gray-600 hover:text-gray-900 focus:outline-none"
+                  className="flex items-center space-x-2 p-2 rounded-md text-white hover:bg-blue-500 focus:outline-none transition-colors duration-200"
                 >
                   <span>{user?.email || 'ユーザーメニュー'}</span>
-                  <span className="text-sm text-gray-500">({user?.role || ''})</span>
+                  <span className="text-sm text-blue-100">({user?.role || ''})</span>
                   <svg
-                    className={`h-5 w-5 transform ${isMenuOpen ? 'rotate-180' : ''}`}
+                    className={`h-5 w-5 transform transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`}
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 20 20"
                     fill="currentColor"
@@ -83,11 +81,11 @@ export default function DashboardLayout({
                   </svg>
                 </button>
                 {isMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
+                  <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 transform transition-all duration-200">
                     <div className="py-1">
                       <button
                         onClick={handleLogout}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"
                       >
                         ログアウト
                       </button>
@@ -103,18 +101,28 @@ export default function DashboardLayout({
       <div className="flex">
         <aside className="w-64 bg-white shadow-lg h-screen">
           <div className="p-4">
-            <nav className="space-y-2">
+            <nav className="space-y-1">
               <Link
                 href="/dashboard"
-                className="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-100"
+                className="block px-4 py-2.5 text-sm font-medium rounded-lg transition duration-200 text-gray-900 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-700"
               >
-                ダッシュボード
+                <div className="flex items-center">
+                  <svg className="mr-3 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                  </svg>
+                  ダッシュボード
+                </div>
               </Link>
               <Link
                 href="/invoice-editor"
-                className="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-100"
+                className="block px-4 py-2.5 text-sm font-medium rounded-lg transition duration-200 text-gray-900 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-700"
               >
-                請求書エディタ
+                <div className="flex items-center">
+                  <svg className="mr-3 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" />
+                  </svg>
+                  請求書エディタ
+                </div>
               </Link>
             </nav>
           </div>

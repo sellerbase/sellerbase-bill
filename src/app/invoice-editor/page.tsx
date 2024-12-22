@@ -4,7 +4,7 @@ import React from 'react';
 
 export default function InvoiceEditor() {
   return (
-    <div className="min-w-[1200px]">
+    <div className="min-w-[1200px] px-8">
       <div className="flex space-x-4">
         <div className="w-[300px] bg-white shadow-lg rounded-xl border border-gray-100 p-4">
           <h2 className="text-lg font-medium text-gray-900 mb-4">基本情報</h2>

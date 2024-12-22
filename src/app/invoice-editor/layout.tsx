@@ -12,8 +12,8 @@ export default function InvoiceEditorLayout({
     <div className="min-h-screen bg-slate-50">
       {/* ヘッダー */}
       <header className="bg-gradient-to-r from-blue-600 to-indigo-700 shadow-lg">
-        <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center">
+        <div className="px-8">
+          <div className="flex justify-between items-center py-4">
             <h1 className="text-2xl font-bold text-white">請求書エディタ</h1>
             <Link
               href="/dashboard"
@@ -29,7 +29,7 @@ export default function InvoiceEditorLayout({
       </header>
 
       {/* メインコンテンツ */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 overflow-x-auto">
+      <main className="py-6 overflow-x-auto">
         {children}
       </main>
     </div>

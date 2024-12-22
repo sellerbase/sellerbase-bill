@@ -1,6 +1,7 @@
 'use client';
 
 import BasicInfoForm from '@/components/invoice/BasicInfoForm';
+import InvoiceItemList from '@/components/invoice/InvoiceItemList';
 import { useState } from 'react';
 
 export default function InvoiceEditorPage() {
@@ -96,22 +97,7 @@ export default function InvoiceEditorPage() {
 
           {/* 明細エリア（スクロール可能） */}
           <div className="max-h-[calc(100vh-24rem)] overflow-y-auto">
-            {/* 明細ヘッダー */}
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-gray-900">明細</h2>
-              <button
-                type="button"
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                </svg>
-                明細を追加
-              </button>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-4 text-center text-gray-600">
-              明細がありません。「明細を追加」ボタンをクリックして明細を追加してください。
-            </div>
+            <InvoiceItemList />
           </div>
         </div>
 

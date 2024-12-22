@@ -21,7 +21,8 @@ export default function SignUpForm() {
       const supabase = getSupabaseBrowserClient();
       console.log('サインアップ開始:', { email, role });
 
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      // ユーザー登録
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -34,7 +35,22 @@ export default function SignUpForm() {
 
       if (signUpError) throw signUpError;
 
-      console.log('サインアップ成功:', data);
+      // プロフィールの作成
+      if (authData?.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([
+            {
+              id: authData.user.id,
+              email: email,
+              role: role,
+            }
+          ]);
+
+        if (profileError) throw profileError;
+      }
+
+      console.log('サインアップ成功:', authData);
       alert('登録確認メールを送信しました。メールをご確認ください。');
     } catch (error) {
       console.error('サインアップエラー:', error);
@@ -58,37 +74,45 @@ export default function SignUpForm() {
       )}
       <form onSubmit={handleSignUp} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">メールアドレス</label>
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+            メールアドレス
+          </label>
           <input
             type="email"
+            id="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            autoComplete="email"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">パスワード</label>
+          <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+            パスワード
+          </label>
           <input
             type="password"
+            id="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={6}
-            autoComplete="new-password"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">アカウントタイプ</label>
+          <label htmlFor="role" className="block text-sm font-medium text-gray-700">
+            ユーザー種別
+          </label>
           <select
+            id="role"
             value={role}
             onChange={(e) => setRole(e.target.value as UserRole)}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
           >
             <option value={UserRole.CLIENT}>クライアント</option>
             <option value={UserRole.STAFF}>スタッフ</option>
+            <option value={UserRole.ADMIN}>管理者</option>
           </select>
         </div>
         <button

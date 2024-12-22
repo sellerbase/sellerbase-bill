@@ -1,16 +1,12 @@
-FROM node:20-alpine
+FROM node:20-slim
 
 WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm install && \
-    npm install @supabase/ssr @supabase/supabase-js && \
-    npm cache clean --force
+RUN npm install --legacy-peer-deps
 
 COPY . .
-
-RUN npm run build
 
 EXPOSE 3000
 

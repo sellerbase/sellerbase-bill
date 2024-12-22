@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { getSupabaseBrowserClient } from '@/lib/supabase';
-import { User } from '@/types/user';
+import { User, UserRole } from '@/types/user';
 import Link from 'next/link';
 
 export default function DashboardLayout({
@@ -11,17 +11,29 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
+  const supabase = getSupabaseBrowserClient();
+
+  const getPageTitle = (path: string) => {
+    switch (path) {
+      case '/dashboard':
+        return 'ダッシュボード';
+      case '/invoice-editor':
+        return '請求書エディタ';
+      default:
+        return '';
+    }
+  };
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const supabase = getSupabaseBrowserClient();
-      
+    const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
+      
       if (!session) {
-        router.push('/auth');
+        router.push('/login');
         return;
       }
 
@@ -31,44 +43,49 @@ export default function DashboardLayout({
         .eq('id', session.user.id)
         .single();
 
-      if (profile) {
-        setUser(profile);
+      if (profile && 
+          typeof profile.id === 'string' && 
+          typeof profile.email === 'string' && 
+          typeof profile.role === 'string' &&
+          (profile.role === 'admin' || profile.role === 'user') &&
+          typeof profile.created_at === 'string'
+      ) {
+        setUser({
+          id: profile.id,
+          email: profile.email,
+          role: profile.role as UserRole,
+          created_at: profile.created_at
+        });
       }
     };
 
-    fetchUser();
-  }, [router]);
+    checkUser();
+  }, [router, supabase]);
 
   const handleLogout = async () => {
-    try {
-      const supabase = getSupabaseBrowserClient();
-      await supabase.auth.signOut();
-      router.push('/auth');
-    } catch (error) {
-      console.error('ログアウトエラー:', error);
-    }
+    await supabase.auth.signOut();
+    router.push('/login');
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <nav className="bg-gradient-to-r from-blue-600 to-indigo-700 shadow-lg">
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      {/* ヘッダー */}
+      <header className="bg-gradient-to-r from-blue-600 to-indigo-700 shadow-lg">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex justify-between h-16">
-            <div className="flex">
-              <div className="flex-shrink-0 flex items-center">
-                <span className="text-xl font-bold text-white">SellerBase</span>
-              </div>
+            <div className="flex items-center space-x-8">
+              <span className="text-xl font-bold text-white">SellerBase</span>
+              <h1 className="text-lg font-medium text-white">{getPageTitle(pathname)}</h1>
             </div>
             <div className="flex items-center">
               <div className="relative">
                 <button
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
-                  className="flex items-center space-x-2 p-2 rounded-md text-white hover:bg-blue-500 focus:outline-none transition-colors duration-200"
+                  className="flex items-center text-sm text-white hover:text-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-blue-600 focus:ring-white"
                 >
-                  <span>{user?.email || 'ユーザーメニュー'}</span>
-                  <span className="text-sm text-blue-100">({user?.role || ''})</span>
+                  <span className="mr-2">{user?.email}</span>
                   <svg
-                    className={`h-5 w-5 transform transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`}
+                    className="h-5 w-5"
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 20 20"
                     fill="currentColor"
@@ -81,11 +98,11 @@ export default function DashboardLayout({
                   </svg>
                 </button>
                 {isMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 transform transition-all duration-200">
+                  <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
                     <div className="py-1">
                       <button
                         onClick={handleLogout}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       >
                         ログアウト
                       </button>
@@ -96,39 +113,36 @@ export default function DashboardLayout({
             </div>
           </div>
         </div>
-      </nav>
-      
-      <div className="flex">
-        <aside className="w-64 bg-white shadow-lg h-screen">
-          <div className="p-4">
-            <nav className="space-y-1">
-              <Link
-                href="/dashboard"
-                className="block px-4 py-2.5 text-sm font-medium rounded-lg transition duration-200 text-gray-900 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-700"
-              >
-                <div className="flex items-center">
-                  <svg className="mr-3 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
-                  </svg>
-                  ダッシュボード
-                </div>
-              </Link>
-              <Link
-                href="/invoice-editor"
-                className="block px-4 py-2.5 text-sm font-medium rounded-lg transition duration-200 text-gray-900 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-700"
-              >
-                <div className="flex items-center">
-                  <svg className="mr-3 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" />
-                  </svg>
-                  請求書エディタ
-                </div>
-              </Link>
-            </nav>
-          </div>
+      </header>
+
+      {/* メインコンテンツ */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* サイドバー */}
+        <aside className="w-64 bg-white shadow-lg">
+          <nav className="p-4 space-y-1">
+            <Link
+              href="/dashboard"
+              className="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg text-gray-900 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-700"
+            >
+              <svg className="mr-3 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+              </svg>
+              ダッシュボード
+            </Link>
+            <Link
+              href="/invoice-editor"
+              className="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg text-gray-900 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-700"
+            >
+              <svg className="mr-3 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" />
+              </svg>
+              請求書エディタ
+            </Link>
+          </nav>
         </aside>
-        
-        <main className="flex-1 p-8">
+
+        {/* メインエリア */}
+        <main className="flex-1 overflow-auto bg-gray-50">
           {children}
         </main>
       </div>

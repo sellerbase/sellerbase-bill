@@ -9,11 +9,10 @@ export default function InvoiceEditorLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* ヘッダー */}
+    <div className="min-h-screen flex flex-col bg-gray-50">
       <header className="bg-gradient-to-r from-blue-600 to-indigo-700 shadow-lg">
-        <div className="px-8">
-          <div className="flex justify-between items-center py-4">
+        <div className="container mx-auto px-4">
+          <div className="flex justify-between items-center h-16">
             <h1 className="text-2xl font-bold text-white">請求書エディタ</h1>
             <Link
               href="/dashboard"
@@ -28,8 +27,7 @@ export default function InvoiceEditorLayout({
         </div>
       </header>
 
-      {/* メインコンテンツ */}
-      <main className="py-6 overflow-x-auto">
+      <main className="flex-1 py-6">
         {children}
       </main>
     </div>

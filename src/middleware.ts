@@ -2,7 +2,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
+  const response = NextResponse.next({
     request: {
       headers: request.headers,
     },
@@ -44,13 +44,11 @@ export async function middleware(request: NextRequest) {
     const isApiRoute = request.nextUrl.pathname.startsWith('/api/');
 
     if (!session && !isAuthPage && !isApiRoute) {
-      const redirectUrl = new URL('/auth', request.url);
-      return NextResponse.redirect(redirectUrl);
+      return NextResponse.redirect(new URL('/auth', request.url));
     }
 
     if (session && isAuthPage) {
-      const redirectUrl = new URL('/dashboard', request.url);
-      return NextResponse.redirect(redirectUrl);
+      return NextResponse.redirect(new URL('/dashboard', request.url));
     }
 
     return response;

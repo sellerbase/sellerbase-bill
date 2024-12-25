@@ -25,7 +25,7 @@ export function useInvoiceTotals(items: InvoiceItem[]): InvoiceTotals {
     };
 
     // 商品の合計
-    const productItems = items.filter(item => item.type === 'product');
+    const productItems = items.filter(item => item.type === 'child_product');
     const productTotal = calculateTotal(productItems);
 
     // オプションの種類ごとの合計

@@ -7,7 +7,13 @@ import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
 type ItemSelectorProps = {
   customerId?: string;
-  onSelectItem: (item: { id: string; title: string; price: number; type: 'product' | 'option' }) => void;
+  onSelectItem: (items: Array<{
+    id: string;
+    title: string;
+    price: number;
+    type: 'parent_product' | 'child_product' | 'option';
+    parentId?: string;
+  }>) => void;
 };
 
 export default function ItemSelector({ customerId, onSelectItem }: ItemSelectorProps) {
@@ -62,12 +68,17 @@ export default function ItemSelector({ customerId, onSelectItem }: ItemSelectorP
           <ProductList
             customerId={customerId}
             searchQuery={searchQuery}
-            onSelect={(product) => onSelectItem(product)}
+            onSelect={onSelectItem}
           />
         ) : (
           <OptionList
             searchQuery={searchQuery}
-            onSelect={(option) => onSelectItem({ ...option, type: 'option', title: option.name })}
+            onSelect={(option) => onSelectItem([{
+              ...option,
+              type: 'option',
+              title: option.name,
+              parentId: undefined
+            }])}
           />
         )}
       </div>

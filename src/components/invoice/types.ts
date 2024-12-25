@@ -29,13 +29,14 @@ export type InvoiceItem = {
   title: string;
   quantity: number;
   unitPrice: number;
-  type: 'product' | 'option';
+  type: 'parent_product' | 'child_product' | 'option';
   notes?: string;
   splitRatio?: number;
   remainingAmount?: number;
   parentId?: string | null;
   groupOrder: number;
   itemOrder: number;
+  isParent?: boolean;
 };
 
 // ドラッグ&ドロップのドロップ位置の型

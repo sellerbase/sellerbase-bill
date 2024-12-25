@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import InvoiceItemForm from './InvoiceItemForm';
-import { InvoiceItem, DraggableProvided, DroppableProvided } from './types';
+import { DragDropContext, Draggable, Droppable, DropResult } from '@hello-pangea/dnd';
+import { Bars3Icon } from '@heroicons/react/24/outline';
+import { InvoiceItem } from './types';
 
 type InvoiceItemListProps = {
   items: InvoiceItem[];
@@ -12,146 +11,122 @@ type InvoiceItemListProps = {
 };
 
 export default function InvoiceItemList({ items, onRemoveItem, onUpdateItems }: InvoiceItemListProps) {
-  const [type, setType] = useState<'standard' | 'split_payment'>('standard');
-
-  // 明細をグループ化
-  const groupedItems = useMemo(() => {
-    // 親商品（グループ）ごとに明細をグループ化
-    const groups = items.reduce((acc, item) => {
-      const groupId = item.parentId || item.id;
-      if (!acc[groupId]) {
-        acc[groupId] = {
-          id: groupId,
-          order: item.groupOrder,
-          items: []
-        };
-      }
-      acc[groupId].items.push(item);
-      return acc;
-    }, {} as Record<string, { id: string; order: number; items: InvoiceItem[] }>);
-
-    // グループを�����ート
-    return Object.values(groups)
-      .sort((a, b) => a.order - b.order)
-      .map(group => ({
-        ...group,
-        items: group.items.sort((a, b) => a.itemOrder - b.itemOrder)
-      }));
-  }, [items]);
-
-  // テラッグ&ドロップの処理
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
 
-    const { source, destination } = result;
-    const updatedItems = [...items];
+    const sourceIndex = result.source.index;
+    const destinationIndex = result.destination.index;
 
-    // グループ間の移動
-    if (result.type === 'group') {
-      const groups = [...groupedItems];
-      const [removed] = groups.splice(source.index, 1);
-      groups.splice(destination.index, 0, removed);
+    // グループのマッピングを作成
+    const groups = items.reduce<Array<{
+      id: string;
+      startIndex: number;
+      endIndex: number;
+      items: InvoiceItem[];
+    }>>((acc, item, index) => {
+      if (item.type === 'parent_product') {
+        const groupItems = [item];
+        let nextIndex = index + 1;
+        
+        while (nextIndex < items.length && items[nextIndex].type !== 'parent_product') {
+          if (items[nextIndex].parentId === item.id) {
+            groupItems.push(items[nextIndex]);
+          }
+          nextIndex++;
+        }
+        
+        acc.push({
+          id: item.id,
+          startIndex: index,
+          endIndex: nextIndex - 1,
+          items: groupItems
+        });
+      } else if (!item.parentId) {
+        acc.push({
+          id: item.id,
+          startIndex: index,
+          endIndex: index,
+          items: [item]
+        });
+      }
+      return acc;
+    }, []);
 
-      // グループの順序を更新
-      const newItems = groups.flatMap((group, groupIndex) =>
-        group.items.map(item => ({
+    const sourceGroup = groups[sourceIndex];
+    if (!sourceGroup) return;
+
+    // グループ内の移動（子商品の並び替え）
+    if (sourceIndex === destinationIndex && sourceGroup.items.length > 1) {
+      const newItems = [...items];
+      const itemToMove = newItems[result.source.index];
+      
+      // 親商品グループ内での移動のみ許可
+      if (
+        itemToMove.type === 'child_product' &&
+        result.destination.index > sourceGroup.startIndex &&
+        result.destination.index <= sourceGroup.endIndex
+      ) {
+        newItems.splice(result.source.index, 1);
+        newItems.splice(result.destination.index, 0, itemToMove);
+
+        const updatedItems = newItems.map((item, index) => ({
           ...item,
-          groupOrder: groupIndex,
-          parentId: group.id === item.id ? null : group.id
-        }))
-      );
+          groupOrder: index,
+          itemOrder: index
+        }));
 
-      onUpdateItems(newItems);
+        onUpdateItems(updatedItems);
+      }
       return;
     }
 
-    // グループ内のアイテムの移動
-    const sourceGroup = source.droppableId;
-    const destGroup = destination.droppableId;
+    // グループ全体の移動
+    const newItems: InvoiceItem[] = [];
+    const remainingGroups = groups.filter((_, index) => index !== sourceIndex);
 
-    const sourceItems = groupedItems.find(g => g.id === sourceGroup)?.items || [];
-    const [removed] = sourceItems.splice(source.index, 1);
+    // 移動先の位置までのグループを追加
+    remainingGroups.slice(0, destinationIndex).forEach(group => {
+      group.items.forEach(item => {
+        newItems.push(item);
+      });
+    });
 
-    if (sourceGroup === destGroup) {
-      // 同じグループ内での移動
-      sourceItems.splice(destination.index, 0, removed);
-      const newItems = items.map(item =>
-        item.id === removed.id
-          ? { ...item, itemOrder: destination.index }
-          : item.parentId === sourceGroup && item.itemOrder >= destination.index
-          ? { ...item, itemOrder: item.itemOrder + 1 }
-          : item
-      );
-      onUpdateItems(newItems);
-    } else {
-      // 異なるグループ間での移動
-      const destItems = groupedItems.find(g => g.id === destGroup)?.items || [];
-      destItems.splice(destination.index, 0, { ...removed, parentId: destGroup });
-      const newItems = items.map(item =>
-        item.id === removed.id
-          ? { ...item, parentId: destGroup, itemOrder: destination.index }
-          : item.parentId === destGroup && item.itemOrder >= destination.index
-          ? { ...item, itemOrder: item.itemOrder + 1 }
-          : item
-      );
-      onUpdateItems(newItems);
-    }
-  };
+    // 移動するグループを追加
+    sourceGroup.items.forEach(item => {
+      newItems.push(item);
+    });
 
-  // テンプレートタイプを切り替える際に、既存の明細をクリア
-  const handleTypeChange = (newType: 'standard' | 'split_payment') => {
-    if (items.length > 0) {
-      if (confirm('テンプレートを切り替えると、現在の明細がクリアされます。よろしいですか？')) {
-        onRemoveItem('all');
-        setType(newType);
-      }
-    } else {
-      setType(newType);
-    }
+    // 残りのグループを追加
+    remainingGroups.slice(destinationIndex).forEach(group => {
+      group.items.forEach(item => {
+        newItems.push(item);
+      });
+    });
+
+    // インデックスを更新
+    const updatedItems = newItems.map((item, index) => ({
+      ...item,
+      groupOrder: index,
+      itemOrder: index
+    }));
+
+    onUpdateItems(updatedItems);
   };
 
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center space-x-4">
-          <h2 className="text-xl font-bold text-gray-900">明細</h2>
-          <div className="flex rounded-md shadow-sm">
-            <button
-              type="button"
-              onClick={() => handleTypeChange('standard')}
-              className={`px-4 py-2 text-sm font-medium rounded-l-md border ${
-                type === 'standard'
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              標準
-            </button>
-            <button
-              type="button"
-              onClick={() => handleTypeChange('split_payment')}
-              className={`px-4 py-2 text-sm font-medium rounded-r-md border-t border-r border-b ${
-                type === 'split_payment'
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              分割請求
-            </button>
-          </div>
-        </div>
+        <h2 className="text-xl font-bold text-gray-900">明細</h2>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         {/* ヘッダー */}
         <div className="grid grid-cols-12 gap-4 items-center px-4 py-3 border-b border-gray-200 bg-gray-50">
-          <div className="col-span-3 text-sm font-medium text-gray-700">名目</div>
+          <div className="col-span-1"></div>
+          <div className="col-span-4 text-sm font-medium text-gray-700">名目</div>
           <div className="col-span-2 text-sm font-medium text-gray-700">数量</div>
           <div className="col-span-2 text-sm font-medium text-gray-700">単価</div>
-          {type === 'split_payment' && (
-            <div className="col-span-2 text-sm font-medium text-gray-700">分割割合</div>
-          )}
-          <div className={`${type === 'split_payment' ? 'col-span-2' : 'col-span-4'} text-sm font-medium text-gray-700`}>小計</div>
+          <div className="col-span-2 text-sm font-medium text-gray-700">小計</div>
           <div className="col-span-1 text-sm font-medium text-gray-700 text-right">操作</div>
         </div>
 
@@ -162,48 +137,84 @@ export default function InvoiceItemList({ items, onRemoveItem, onUpdateItems }: 
           </div>
         ) : (
           <DragDropContext onDragEnd={handleDragEnd}>
-            <Droppable droppableId="groups" type="group">
-              {(provided: DroppableProvided) => (
-                <div {...provided.droppableProps} ref={provided.innerRef}>
-                  {groupedItems.map((group, index) => (
-                    <Draggable key={group.id} draggableId={group.id} index={index}>
-                      {(provided: DraggableProvided) => (
+            <Droppable droppableId="invoice-items">
+              {(provided) => (
+                <div
+                  {...provided.droppableProps}
+                  ref={provided.innerRef}
+                  className="divide-y divide-gray-200"
+                >
+                  {items.reduce<Array<{ id: string; items: InvoiceItem[] }>>((groups, item, index) => {
+                    if (item.type === 'parent_product') {
+                      // 親商品の場合、新しいグループを作成
+                      const groupItems = [item];
+                      let nextIndex = index + 1;
+                      
+                      // 次の親商品が来るまで、子商品とオプションを収集
+                      while (nextIndex < items.length && items[nextIndex].type !== 'parent_product') {
+                        if (items[nextIndex].parentId === item.id) {
+                          groupItems.push(items[nextIndex]);
+                        }
+                        nextIndex++;
+                      }
+                      
+                      groups.push({ id: item.id, items: groupItems });
+                    } else if (!item.parentId) {
+                      // 親商品に紐付いていない項目は単独でグループ化
+                      groups.push({ id: item.id, items: [item] });
+                    }
+                    return groups;
+                  }, []).map((group, groupIndex) => (
+                    <Draggable
+                      key={group.id}
+                      draggableId={group.id}
+                      index={groupIndex}
+                    >
+                      {(provided) => (
                         <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
-                          {...provided.dragHandleProps}
-                          className="border-b border-gray-200 last:border-b-0"
+                          className="group"
                         >
-                          <Droppable droppableId={group.id} type="item">
-                            {(provided: DroppableProvided) => (
-                              <div {...provided.droppableProps} ref={provided.innerRef}>
-                                {group.items.map((item, itemIndex) => (
-                                  <Draggable key={item.id} draggableId={item.id} index={itemIndex}>
-                                    {(provided: DraggableProvided) => (
-                                      <div
-                                        ref={provided.innerRef}
-                                        {...provided.draggableProps}
-                                        {...provided.dragHandleProps}
-                                      >
-                                        <InvoiceItemForm
-                                          type={type}
-                                          item={item}
-                                          onDelete={() => onRemoveItem(item.id)}
-                                          onChange={(updatedItem) => {
-                                            const newItems = items.map(i =>
-                                              i.id === updatedItem.id ? updatedItem : i
-                                            );
-                                            onUpdateItems(newItems);
-                                          }}
-                                        />
-                                      </div>
-                                    )}
-                                  </Draggable>
-                                ))}
-                                {provided.placeholder}
+                          {group.items.map((item, itemIndex) => (
+                            <div
+                              key={item.id}
+                              className={`
+                                grid grid-cols-12 gap-4 items-center px-4 py-3
+                                ${item.type === 'child_product' || (item.type === 'option' && item.parentId) ? 'ml-6' : ''}
+                                ${item.type === 'option' ? 'bg-gray-50' : 'bg-white'}
+                                ${itemIndex === 0 ? 'group-first:border-t-0' : ''}
+                              `}
+                            >
+                              <div
+                                {...(itemIndex === 0 ? provided.dragHandleProps : {})}
+                                className="col-span-1 cursor-move text-gray-400 hover:text-gray-600"
+                              >
+                                <Bars3Icon className="h-5 w-5" />
                               </div>
-                            )}
-                          </Droppable>
+                              <div className="col-span-4">
+                                <span className="text-gray-900">{item.title}</span>
+                              </div>
+                              <div className="col-span-2">
+                                <span className="text-gray-600">{item.quantity}</span>
+                              </div>
+                              <div className="col-span-2">
+                                <span className="text-gray-600">¥{item.unitPrice.toFixed(2)}</span>
+                              </div>
+                              <div className="col-span-2">
+                                <span className="text-gray-600">¥{(item.quantity * item.unitPrice).toFixed(2)}</span>
+                              </div>
+                              <div className="col-span-1 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => onRemoveItem(item.id)}
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  削除
+                                </button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       )}
                     </Draggable>

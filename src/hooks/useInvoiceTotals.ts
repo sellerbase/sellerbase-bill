@@ -1,63 +1,73 @@
 import { useMemo } from 'react';
-import { InvoiceItem } from '@/components/invoice/types';
+import { InvoiceItem } from '../components/invoice/types';
 
-export type InvoiceTotals = {
+type InvoiceTotals = {
   product: number;
   inspection: number;
   work: number;
   packaging: number;
   shipping: number;
-  total: number;
+  subtotal: number;
+  taxAmount: number;
+  totalWithTax: number;
+  splitTotal: number;
+  formatCurrency: (amount: number) => string;
 };
 
-export function useInvoiceTotals(items: InvoiceItem[]): InvoiceTotals {
+export const useInvoiceTotals = (items: InvoiceItem[]): InvoiceTotals => {
   return useMemo(() => {
-    // 各項目の合計を計算する関数
-    const calculateTotal = (items: InvoiceItem[]): number => {
-      return items.reduce((sum, item) => {
-        const amount = item.quantity * item.unitPrice;
-        if (item.splitRatio) {
-          // 分割支払いの場合は、分割比率に応じた金額を計算
-          return sum + (amount * (item.splitRatio / 100));
+    // カテゴリ別の集計を行う
+    const categoryTotals = items.reduce((acc, item) => {
+      const subtotal = item.quantity * item.unitPrice;
+      const taxRate = item.taxRate || 0.1;
+      const splitRatio = item.splitRatio || 1;
+      const taxAmount = subtotal * taxRate;
+      const totalWithTax = subtotal + taxAmount;
+      const splitAmount = totalWithTax * splitRatio;
+
+      // カテゴリ別の集計（分割後の金額で集計）
+      if (item.type === 'child_product') {
+        acc.product += splitAmount;
+      } else if (item.type === 'option') {
+        if (item.title.includes('検品')) {
+          acc.inspection += splitAmount;
+        } else if (item.title.includes('作業')) {
+          acc.work += splitAmount;
+        } else if (
+          item.title.includes('OPP袋') || 
+          item.title.includes('PE袋') || 
+          item.title.includes('ラッピング') || 
+          item.title.includes('包装')
+        ) {
+          acc.packaging += splitAmount;
+        } else if (item.title.includes('配送') || item.title.includes('運送')) {
+          acc.shipping += splitAmount;
         }
-        return sum + amount;
-      }, 0);
-    };
+      }
 
-    // 商品の合計
-    const productItems = items.filter(item => item.type === 'child_product');
-    const productTotal = calculateTotal(productItems);
+      // 全体の集計
+      acc.subtotal += subtotal;
+      acc.taxAmount += taxAmount;
+      acc.totalWithTax += totalWithTax;
+      acc.splitTotal += splitAmount;
 
-    // オプションの種類ごとの合計
-    const optionItems = items.filter(item => item.type === 'option');
-    const inspectionTotal = calculateTotal(
-      optionItems.filter(item => item.title.includes('検品'))
-    );
-    const workTotal = calculateTotal(
-      optionItems.filter(item => item.title.includes('作業'))
-    );
-    const packagingTotal = calculateTotal(
-      optionItems.filter(item => 
-        item.title.includes('OPP袋') || 
-        item.title.includes('PE袋') || 
-        item.title.includes('ラッピング') || 
-        item.title.includes('包装')
-      )
-    );
-    const shippingTotal = calculateTotal(
-      optionItems.filter(item => item.title.includes('配送') || item.title.includes('運送'))
-    );
-
-    // 総合計を計算
-    const grandTotal = productTotal + inspectionTotal + workTotal + packagingTotal + shippingTotal;
+      return acc;
+    }, {
+      product: 0,
+      inspection: 0,
+      work: 0,
+      packaging: 0,
+      shipping: 0,
+      subtotal: 0,
+      taxAmount: 0,
+      totalWithTax: 0,
+      splitTotal: 0
+    });
 
     return {
-      product: Number(productTotal.toFixed(2)),
-      inspection: Number(inspectionTotal.toFixed(2)),
-      work: Number(workTotal.toFixed(2)),
-      packaging: Number(packagingTotal.toFixed(2)),
-      shipping: Number(shippingTotal.toFixed(2)),
-      total: Number(grandTotal.toFixed(2))
+      ...categoryTotals,
+      // 金額を整形するヘルパー関数
+      formatCurrency: (amount: number) => `¥${amount.toFixed(2)}`
     };
   }, [items]);
-} 
+}; 

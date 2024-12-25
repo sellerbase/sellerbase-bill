@@ -148,15 +148,15 @@ export default function InvoiceEditorPage() {
                 <div className="grid grid-cols-3 gap-3 mb-2">
                   <div className="bg-white p-2 rounded-md shadow-sm">
                     <div className="text-xs text-gray-600 mb-0.5">CNY（メイン）</div>
-                    <div className="text-lg font-bold text-gray-900">¥{totals.total.toFixed(2)}</div>
+                    <div className="text-lg font-bold text-gray-900">{totals.formatCurrency(totals.totalWithTax)}</div>
                   </div>
                   <div className="bg-white p-2 rounded-md shadow-sm">
                     <div className="text-xs text-gray-600 mb-0.5">USD</div>
-                    <div className="text-lg font-bold text-gray-900">$0.00</div>
+                    <div className="text-lg font-bold text-gray-900">{totals.formatCurrency(totals.totalWithTax * 0.14)}</div>
                   </div>
                   <div className="bg-white p-2 rounded-md shadow-sm">
                     <div className="text-xs text-gray-600 mb-0.5">JPY</div>
-                    <div className="text-lg font-bold text-gray-900">￥0</div>
+                    <div className="text-lg font-bold text-gray-900">{totals.formatCurrency(totals.totalWithTax * 20.27)}</div>
                   </div>
                 </div>
 
@@ -184,7 +184,7 @@ export default function InvoiceEditorPage() {
                         <div className="flex justify-between items-center text-xs">
                           <span className="text-gray-600">商品</span>
                           <span className="font-medium text-gray-900">
-                            ¥{totals.product.toFixed(2)}
+                            {totals.formatCurrency(totals.product)}
                           </span>
                         </div>
                       </div>
@@ -192,7 +192,7 @@ export default function InvoiceEditorPage() {
                         <div className="flex justify-between items-center text-xs">
                           <span className="text-gray-600">検品</span>
                           <span className="font-medium text-gray-900">
-                            ¥{totals.inspection.toFixed(2)}
+                            {totals.formatCurrency(totals.inspection)}
                           </span>
                         </div>
                       </div>
@@ -200,7 +200,7 @@ export default function InvoiceEditorPage() {
                         <div className="flex justify-between items-center text-xs">
                           <span className="text-gray-600">作業</span>
                           <span className="font-medium text-gray-900">
-                            ¥{totals.work.toFixed(2)}
+                            {totals.formatCurrency(totals.work)}
                           </span>
                         </div>
                       </div>
@@ -208,7 +208,7 @@ export default function InvoiceEditorPage() {
                         <div className="flex justify-between items-center text-xs">
                           <span className="text-gray-600">包装</span>
                           <span className="font-medium text-gray-900">
-                            ¥{totals.packaging.toFixed(2)}
+                            {totals.formatCurrency(totals.packaging)}
                           </span>
                         </div>
                       </div>
@@ -216,7 +216,7 @@ export default function InvoiceEditorPage() {
                         <div className="flex justify-between items-center text-xs">
                           <span className="text-gray-600">運送</span>
                           <span className="font-medium text-gray-900">
-                            ¥{totals.shipping.toFixed(2)}
+                            {totals.formatCurrency(totals.shipping)}
                           </span>
                         </div>
                       </div>

@@ -26,17 +26,16 @@ export type Option = {
 // 明細項目の型
 export type InvoiceItem = {
   id: string;
+  type: 'parent_product' | 'child_product' | 'option';
   title: string;
   quantity: number;
   unitPrice: number;
-  type: 'parent_product' | 'child_product' | 'option';
-  notes?: string;
+  taxRate?: number;
   splitRatio?: number;
-  remainingAmount?: number;
-  parentId?: string | null;
+  notes?: string;
   groupOrder: number;
   itemOrder: number;
-  isParent?: boolean;
+  parentId?: string;
 };
 
 // ドラッグ&ドロップのドロップ位置の型

@@ -2,34 +2,22 @@
 
 import { useState } from 'react';
 import { TrashIcon, ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
-
-type InvoiceItem = {
-  id: string;
-  title: string;
-  quantity: number;
-  unitPrice: number;
-  subtotal: number;
-  splitRatio?: number;
-  remainingAmount?: number;
-  notes?: string;
-};
+import { InvoiceItem } from './types';
 
 type InvoiceItemFormProps = {
   type: 'standard' | 'split_payment';
+  item: InvoiceItem;
   onDelete: () => void;
+  onChange: (updatedItem: InvoiceItem) => void;
 };
 
-export default function InvoiceItemForm({ type, onDelete }: InvoiceItemFormProps) {
+export default function InvoiceItemForm({ type, item: initialItem, onDelete, onChange }: InvoiceItemFormProps) {
   const [showNotes, setShowNotes] = useState(false);
   const [item, setItem] = useState<InvoiceItem>({
-    id: crypto.randomUUID(),
-    title: '',
-    quantity: 1,
-    unitPrice: 0,
-    subtotal: 0,
-    splitRatio: type === 'split_payment' ? 10 : undefined,
-    remainingAmount: type === 'split_payment' ? 0 : undefined,
-    notes: ''
+    ...initialItem,
+    notes: initialItem.notes || '',
+    splitRatio: type === 'split_payment' ? (initialItem.splitRatio || 10) : undefined,
+    remainingAmount: type === 'split_payment' ? (initialItem.remainingAmount || 0) : undefined,
   });
 
   // 小計を計算
@@ -38,38 +26,58 @@ export default function InvoiceItemForm({ type, onDelete }: InvoiceItemFormProps
     if (splitRatio && type === 'split_payment') {
       const splitAmount = total * (splitRatio / 100);
       const remaining = total - splitAmount;
-      setItem(prev => ({
-        ...prev,
+      const updatedItem = {
+        ...item,
+        quantity,
+        unitPrice,
+        splitRatio,
         subtotal: Number(splitAmount.toFixed(2)),
         remainingAmount: Number(remaining.toFixed(2))
-      }));
+      };
+      setItem(updatedItem);
+      onChange(updatedItem);
     } else {
-      setItem(prev => ({
-        ...prev,
+      const updatedItem = {
+        ...item,
+        quantity,
+        unitPrice,
         subtotal: Number(total.toFixed(2))
-      }));
+      };
+      setItem(updatedItem);
+      onChange(updatedItem);
     }
   };
 
   // 数量変更時の処理
   const handleQuantityChange = (value: string) => {
     const quantity = Number(value);
-    setItem(prev => ({ ...prev, quantity }));
     calculateSubtotal(quantity, item.unitPrice, item.splitRatio);
   };
 
   // 単価変更時の処理
   const handleUnitPriceChange = (value: string) => {
     const unitPrice = Number(value);
-    setItem(prev => ({ ...prev, unitPrice }));
     calculateSubtotal(item.quantity, unitPrice, item.splitRatio);
   };
 
   // 分割割合変更時の処理
   const handleSplitRatioChange = (value: string) => {
     const splitRatio = Number(value);
-    setItem(prev => ({ ...prev, splitRatio }));
     calculateSubtotal(item.quantity, item.unitPrice, splitRatio);
+  };
+
+  // タイトル変更時の処理
+  const handleTitleChange = (value: string) => {
+    const updatedItem = { ...item, title: value };
+    setItem(updatedItem);
+    onChange(updatedItem);
+  };
+
+  // 備考変更時の処理
+  const handleNotesChange = (value: string) => {
+    const updatedItem = { ...item, notes: value };
+    setItem(updatedItem);
+    onChange(updatedItem);
   };
 
   return (
@@ -80,7 +88,7 @@ export default function InvoiceItemForm({ type, onDelete }: InvoiceItemFormProps
           <input
             type="text"
             value={item.title}
-            onChange={(e) => setItem({ ...item, title: e.target.value })}
+            onChange={(e) => handleTitleChange(e.target.value)}
             className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
             placeholder="名目を入力"
           />
@@ -128,7 +136,7 @@ export default function InvoiceItemForm({ type, onDelete }: InvoiceItemFormProps
         {/* 小計 */}
         <div className={`${type === 'split_payment' ? 'col-span-2' : 'col-span-4'}`}>
           <div className="text-lg font-bold text-gray-900">
-            ¥{item.subtotal.toFixed(2)}
+            ¥{(item.quantity * item.unitPrice).toFixed(2)}
             {type === 'split_payment' && item.remainingAmount !== undefined && (
               <div className="text-sm font-normal text-gray-600">
                 残金: ¥{item.remainingAmount.toFixed(2)}
@@ -165,7 +173,7 @@ export default function InvoiceItemForm({ type, onDelete }: InvoiceItemFormProps
         <div className="mt-4">
           <textarea
             value={item.notes}
-            onChange={(e) => setItem({ ...item, notes: e.target.value })}
+            onChange={(e) => handleNotesChange(e.target.value)}
             rows={3}
             className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
             placeholder="備考を入力"

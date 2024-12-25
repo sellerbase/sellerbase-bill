@@ -1,45 +1,108 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import InvoiceItemForm from './InvoiceItemForm';
+import { InvoiceItem, DraggableProvided, DroppableProvided } from './types';
 
-type InvoiceItem = {
-  id: string;
-  title: string;
-  quantity: number;
-  unitPrice: number;
-  subtotal: number;
-  splitRatio?: number;
-  remainingAmount?: number;
-  notes?: string;
+type InvoiceItemListProps = {
+  items: InvoiceItem[];
+  onRemoveItem: (id: string) => void;
+  onUpdateItems: (items: InvoiceItem[]) => void;
 };
 
-export default function InvoiceItemList() {
+export default function InvoiceItemList({ items, onRemoveItem, onUpdateItems }: InvoiceItemListProps) {
   const [type, setType] = useState<'standard' | 'split_payment'>('standard');
-  const [items, setItems] = useState<InvoiceItem[]>([]);
 
-  const addItem = () => {
-    setItems([...items, {
-      id: crypto.randomUUID(),
-      title: '',
-      quantity: 1,
-      unitPrice: 0,
-      subtotal: 0,
-      splitRatio: type === 'split_payment' ? 10 : undefined,
-      remainingAmount: type === 'split_payment' ? 0 : undefined,
-      notes: ''
-    }]);
-  };
+  // 明細をグループ化
+  const groupedItems = useMemo(() => {
+    // 親商品（グループ）ごとに明細をグループ化
+    const groups = items.reduce((acc, item) => {
+      const groupId = item.parentId || item.id;
+      if (!acc[groupId]) {
+        acc[groupId] = {
+          id: groupId,
+          order: item.groupOrder,
+          items: []
+        };
+      }
+      acc[groupId].items.push(item);
+      return acc;
+    }, {} as Record<string, { id: string; order: number; items: InvoiceItem[] }>);
 
-  const removeItem = (id: string) => {
-    setItems(items.filter(item => item.id !== id));
+    // グループを�����ート
+    return Object.values(groups)
+      .sort((a, b) => a.order - b.order)
+      .map(group => ({
+        ...group,
+        items: group.items.sort((a, b) => a.itemOrder - b.itemOrder)
+      }));
+  }, [items]);
+
+  // テラッグ&ドロップの処理
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+
+    const { source, destination } = result;
+    const updatedItems = [...items];
+
+    // グループ間の移動
+    if (result.type === 'group') {
+      const groups = [...groupedItems];
+      const [removed] = groups.splice(source.index, 1);
+      groups.splice(destination.index, 0, removed);
+
+      // グループの順序を更新
+      const newItems = groups.flatMap((group, groupIndex) =>
+        group.items.map(item => ({
+          ...item,
+          groupOrder: groupIndex,
+          parentId: group.id === item.id ? null : group.id
+        }))
+      );
+
+      onUpdateItems(newItems);
+      return;
+    }
+
+    // グループ内のアイテムの移動
+    const sourceGroup = source.droppableId;
+    const destGroup = destination.droppableId;
+
+    const sourceItems = groupedItems.find(g => g.id === sourceGroup)?.items || [];
+    const [removed] = sourceItems.splice(source.index, 1);
+
+    if (sourceGroup === destGroup) {
+      // 同じグループ内での移動
+      sourceItems.splice(destination.index, 0, removed);
+      const newItems = items.map(item =>
+        item.id === removed.id
+          ? { ...item, itemOrder: destination.index }
+          : item.parentId === sourceGroup && item.itemOrder >= destination.index
+          ? { ...item, itemOrder: item.itemOrder + 1 }
+          : item
+      );
+      onUpdateItems(newItems);
+    } else {
+      // 異なるグループ間での移動
+      const destItems = groupedItems.find(g => g.id === destGroup)?.items || [];
+      destItems.splice(destination.index, 0, { ...removed, parentId: destGroup });
+      const newItems = items.map(item =>
+        item.id === removed.id
+          ? { ...item, parentId: destGroup, itemOrder: destination.index }
+          : item.parentId === destGroup && item.itemOrder >= destination.index
+          ? { ...item, itemOrder: item.itemOrder + 1 }
+          : item
+      );
+      onUpdateItems(newItems);
+    }
   };
 
   // テンプレートタイプを切り替える際に、既存の明細をクリア
   const handleTypeChange = (newType: 'standard' | 'split_payment') => {
     if (items.length > 0) {
       if (confirm('テンプレートを切り替えると、現在の明細がクリアされます。よろしいですか？')) {
-        setItems([]);
+        onRemoveItem('all');
         setType(newType);
       }
     } else {
@@ -77,16 +140,6 @@ export default function InvoiceItemList() {
             </button>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={addItem}
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-          </svg>
-          明細を追加
-        </button>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -105,18 +158,61 @@ export default function InvoiceItemList() {
         {/* 明細リスト */}
         {items.length === 0 ? (
           <div className="p-4 text-center text-gray-600">
-            明細がありません。「明細を追加」ボタンをクリックして明細を追加してください。
+            明細がありません。右の商品/オプション一覧から項目を選択してください。
           </div>
         ) : (
-          <div>
-            {items.map(item => (
-              <InvoiceItemForm
-                key={item.id}
-                type={type}
-                onDelete={() => removeItem(item.id)}
-              />
-            ))}
-          </div>
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Droppable droppableId="groups" type="group">
+              {(provided: DroppableProvided) => (
+                <div {...provided.droppableProps} ref={provided.innerRef}>
+                  {groupedItems.map((group, index) => (
+                    <Draggable key={group.id} draggableId={group.id} index={index}>
+                      {(provided: DraggableProvided) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          {...provided.dragHandleProps}
+                          className="border-b border-gray-200 last:border-b-0"
+                        >
+                          <Droppable droppableId={group.id} type="item">
+                            {(provided: DroppableProvided) => (
+                              <div {...provided.droppableProps} ref={provided.innerRef}>
+                                {group.items.map((item, itemIndex) => (
+                                  <Draggable key={item.id} draggableId={item.id} index={itemIndex}>
+                                    {(provided: DraggableProvided) => (
+                                      <div
+                                        ref={provided.innerRef}
+                                        {...provided.draggableProps}
+                                        {...provided.dragHandleProps}
+                                      >
+                                        <InvoiceItemForm
+                                          type={type}
+                                          item={item}
+                                          onDelete={() => onRemoveItem(item.id)}
+                                          onChange={(updatedItem) => {
+                                            const newItems = items.map(i =>
+                                              i.id === updatedItem.id ? updatedItem : i
+                                            );
+                                            onUpdateItems(newItems);
+                                          }}
+                                        />
+                                      </div>
+                                    )}
+                                  </Draggable>
+                                ))}
+                                {provided.placeholder}
+                              </div>
+                            )}
+                          </Droppable>
+                        </div>
+                      )}
+                    </Draggable>
+                  ))}
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
+          </DragDropContext>
         )}
       </div>
     </div>

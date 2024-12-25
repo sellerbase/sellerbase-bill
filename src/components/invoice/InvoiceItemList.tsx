@@ -1,29 +1,17 @@
 'use client';
 
-import { DragDropContext, Draggable, Droppable, DropResult } from '@hello-pangea/dnd';
+import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import { Bars3Icon } from '@heroicons/react/24/outline';
 import { InvoiceItem } from './types';
-import { useMemo } from 'react';
+import { useColorMap } from './hooks/useColorMap';
+import { useDragAndDrop } from './hooks/useDragAndDrop';
+import { useOptionUngroup } from './hooks/useOptionUngroup';
 
 type InvoiceItemListProps = {
   items: InvoiceItem[];
   onRemoveItem: (id: string) => void;
   onUpdateItems: (items: InvoiceItem[]) => void;
 };
-
-// カラーパレットの定義（10色）
-const GROUP_COLORS = [
-  'border-l-[6px] !border-l-blue-500',
-  'border-l-[6px] !border-l-green-500',
-  'border-l-[6px] !border-l-yellow-500',
-  'border-l-[6px] !border-l-red-500',
-  'border-l-[6px] !border-l-purple-500',
-  'border-l-[6px] !border-l-pink-500',
-  'border-l-[6px] !border-l-indigo-500',
-  'border-l-[6px] !border-l-orange-500',
-  'border-l-[6px] !border-l-teal-500',
-  'border-l-[6px] !border-l-cyan-500',
-];
 
 export default function InvoiceItemList({ items, onRemoveItem, onUpdateItems }: InvoiceItemListProps) {
   // デバッグ用にitemsの内容を確認
@@ -35,226 +23,9 @@ export default function InvoiceItemList({ items, onRemoveItem, onUpdateItems }: 
     groupOrder: item.groupOrder
   })));
 
-  // 親商品のIDと色の対応を保持する静的なマップ
-  const staticColorMap = useMemo(() => {
-    const map = new Map<string, string>();
-    const seenParentIds = new Set<string>();
-    
-    // すべての親商品を処理
-    items.forEach(item => {
-      if (item.type === 'parent_product' && !seenParentIds.has(item.id)) {
-        // 既に色が割り当てられている場合はその色を使用
-        const existingColor = map.get(item.id);
-        if (existingColor) {
-          seenParentIds.add(item.id);
-          return;
-        }
-        
-        // 新しい親商品には未使用の色を割り当て
-        const usedColors = new Set(map.values());
-        const availableColor = GROUP_COLORS.find(color => !usedColors.has(color)) || GROUP_COLORS[0];
-        
-        seenParentIds.add(item.id);
-        map.set(item.id, availableColor);
-      }
-    });
-    
-    return map;
-  }, []); // 依存配列を空にして永続的に保持
-
-  // アイテムのカラーを取得する関数
-  const getItemColor = (item: InvoiceItem): string => {
-    if (item.type === 'parent_product') {
-      // 既存の色があればそれを使用、なければ新しい色を割り当て
-      let color = staticColorMap.get(item.id);
-      if (!color) {
-        const usedColors = new Set(staticColorMap.values());
-        color = GROUP_COLORS.find(c => !usedColors.has(c)) || GROUP_COLORS[0];
-        staticColorMap.set(item.id, color);
-      }
-      return color;
-    }
-    if (item.parentId) {
-      return staticColorMap.get(item.parentId) || '';
-    }
-    return '';
-  };
-
-  const handleDragEnd = (result: DropResult) => {
-    if (!result.destination) return;
-
-    const sourceIndex = result.source.index;
-    const destinationIndex = result.destination.index;
-    const itemToMove = items[sourceIndex];
-
-    // 子商品の移動制限
-    if (itemToMove.type === 'child_product') {
-      const parentId = itemToMove.parentId;
-      if (!parentId) return;
-
-      // 親商品の位置を特定
-      const parentIndex = items.findIndex(item => 
-        item.type === 'parent_product' && item.id === parentId
-      );
-      if (parentIndex === -1) return;
-
-      // 次の親商品の位置を特定
-      let nextParentIndex = items.findIndex((item, index) => 
-        index > parentIndex && item.type === 'parent_product'
-      );
-      if (nextParentIndex === -1) nextParentIndex = items.length;
-
-      // 移動可能な範囲をチェック
-      if (
-        destinationIndex <= parentIndex || // 親商品より上には移動不可
-        destinationIndex >= nextParentIndex || // 次の親商品以降に移動不可
-        items[destinationIndex]?.parentId !== parentId // 同じ親商品グループ内でのみ移動可能
-      ) {
-        return;
-      }
-
-      // 子商品の移動を実行
-      const newItems = Array.from(items);
-      newItems.splice(sourceIndex, 1);
-      newItems.splice(destinationIndex, 0, itemToMove);
-
-      const updatedItems = newItems.map((item, index) => ({
-        ...item,
-        groupOrder: index,
-        itemOrder: index
-      }));
-
-      onUpdateItems(updatedItems);
-      return;
-    }
-
-    // 親商品の移動
-    if (itemToMove.type === 'parent_product') {
-      // グループの範囲を特定
-      const groupItems = [itemToMove];
-      let nextIndex = sourceIndex + 1;
-      while (nextIndex < items.length && items[nextIndex].type !== 'parent_product') {
-        if (items[nextIndex].parentId === itemToMove.id) {
-          groupItems.push(items[nextIndex]);
-        }
-        nextIndex++;
-      }
-
-      // 移動先が他の親商品グループの中でないかチェック
-      const destinationItem = items[destinationIndex];
-      if (destinationItem && destinationItem.parentId) {
-        return; // 他の親商品の子商品の間への移動は不可
-      }
-
-      // 移動先の前後の親商品を確認
-      let prevParentIndex = -1;
-      let nextParentIndex = items.length;
-
-      for (let i = destinationIndex - 1; i >= 0; i--) {
-        if (items[i].type === 'parent_product') {
-          prevParentIndex = i;
-          break;
-        }
-      }
-
-      for (let i = destinationIndex; i < items.length; i++) {
-        if (i !== sourceIndex && items[i].type === 'parent_product') {
-          nextParentIndex = i;
-          break;
-        }
-      }
-
-      // 移動先が他の親商品グループの中にある場合は移動を禁止
-      const isWithinOtherGroup = prevParentIndex !== -1 && nextParentIndex < items.length &&
-        items[prevParentIndex].id !== itemToMove.id &&
-        items[nextParentIndex].id !== itemToMove.id;
-
-      if (isWithinOtherGroup) {
-        return;
-      }
-
-      // グループ全体を一時的に削除
-      const itemsWithoutGroup = items.filter((_, index) => {
-        return index < sourceIndex || index >= nextIndex;
-      });
-
-      // グループを新しい位置に挿入
-      const newItems = [...itemsWithoutGroup];
-      newItems.splice(destinationIndex, 0, ...groupItems);
-
-      // インデックスを更新
-      const updatedItems = newItems.map((item, index) => ({
-        ...item,
-        groupOrder: index,
-        itemOrder: index
-      }));
-
-      onUpdateItems(updatedItems);
-      return;
-    }
-
-    // オプションの移動
-    if (itemToMove.type === 'option') {
-      const newItems = Array.from(items);
-      newItems.splice(sourceIndex, 1);
-
-      // 移動先の親商品を特定
-      let targetParentId: string | undefined = undefined;
-
-      // 移動先の位置から最も近い親商品とその範囲を探す
-      for (let i = destinationIndex - 1; i >= 0; i--) {
-        if (newItems[i].type === 'parent_product') {
-          const currentParentId = newItems[i].id;
-          // この親商品の範囲の終わりを見つける
-          const groupEndIndex = newItems.findIndex((item, index) => 
-            index > i && item.type === 'parent_product'
-          );
-          
-          // 移動先が親商品グループの範囲内にある場合
-          if (groupEndIndex === -1 || destinationIndex <= groupEndIndex) {
-            targetParentId = currentParentId;
-          }
-          break;
-        }
-      }
-
-      // オプションを移動
-      newItems.splice(destinationIndex, 0, {
-        ...itemToMove,
-        parentId: targetParentId // 親商品グループ内に移動した場合のみ紐付け
-      });
-
-      // インデックスを更新
-      const updatedItems = newItems.map((item, index) => ({
-        ...item,
-        groupOrder: index,
-        itemOrder: index
-      }));
-
-      onUpdateItems(updatedItems);
-      return;
-    }
-  };
-
-  // オプションのグループ解除を処理する関数
-  const handleUngroup = (item: InvoiceItem) => {
-    if (item.type === 'option' && item.parentId) {
-      // 一旦対象のオプションを除外
-      const itemsWithoutOption = items.filter(currentItem => currentItem.id !== item.id);
-      
-      // グループ解除したオプションを最後に追加
-      const updatedItems = [
-        ...itemsWithoutOption,
-        { ...item, parentId: undefined }
-      ].map((currentItem, index) => ({
-        ...currentItem,
-        groupOrder: index,
-        itemOrder: index
-      }));
-
-      onUpdateItems(updatedItems);
-    }
-  };
+  const { getItemColor } = useColorMap(items);
+  const { handleDragEnd } = useDragAndDrop(items, onUpdateItems);
+  const { handleUngroup } = useOptionUngroup(items, onUpdateItems);
 
   return (
     <div>
@@ -276,7 +47,7 @@ export default function InvoiceItemList({ items, onRemoveItem, onUpdateItems }: 
         {/* 明細リスト */}
         {items.length === 0 ? (
           <div className="p-4 text-center text-gray-600">
-            明細がありません。の商品/オプション一覧から項目を選択してください。
+            明細がありません。商品/オプション一覧から項目を選択してください。
           </div>
         ) : (
           <DragDropContext onDragEnd={handleDragEnd}>

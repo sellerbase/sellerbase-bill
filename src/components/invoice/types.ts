@@ -36,6 +36,7 @@ export type InvoiceItem = {
   groupOrder: number;
   itemOrder: number;
   parentId?: string;
+  remainingAmount?: number;
 };
 
 // ドラッグ&ドロップのドロップ位置の型

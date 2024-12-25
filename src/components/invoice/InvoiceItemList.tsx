@@ -16,101 +16,121 @@ export default function InvoiceItemList({ items, onRemoveItem, onUpdateItems }: 
 
     const sourceIndex = result.source.index;
     const destinationIndex = result.destination.index;
+    const itemToMove = items[sourceIndex];
 
-    // グループのマッピングを作成
-    const groups = items.reduce<Array<{
-      id: string;
-      startIndex: number;
-      endIndex: number;
-      items: InvoiceItem[];
-    }>>((acc, item, index) => {
-      if (item.type === 'parent_product') {
-        const groupItems = [item];
-        let nextIndex = index + 1;
-        
-        while (nextIndex < items.length && items[nextIndex].type !== 'parent_product') {
-          if (items[nextIndex].parentId === item.id) {
-            groupItems.push(items[nextIndex]);
-          }
-          nextIndex++;
-        }
-        
-        acc.push({
-          id: item.id,
-          startIndex: index,
-          endIndex: nextIndex - 1,
-          items: groupItems
-        });
-      } else if (!item.parentId) {
-        acc.push({
-          id: item.id,
-          startIndex: index,
-          endIndex: index,
-          items: [item]
-        });
-      }
-      return acc;
-    }, []);
+    // 子商品の移動制限
+    if (itemToMove.type === 'child_product') {
+      const parentId = itemToMove.parentId;
+      if (!parentId) return;
 
-    const sourceGroup = groups[sourceIndex];
-    if (!sourceGroup) return;
+      // 親商品の位置を特定
+      const parentIndex = items.findIndex(item => 
+        item.type === 'parent_product' && item.id === parentId
+      );
+      if (parentIndex === -1) return;
 
-    // グループ内の移動（子商品の並び替え）
-    if (sourceIndex === destinationIndex && sourceGroup.items.length > 1) {
-      const newItems = [...items];
-      const itemToMove = newItems[result.source.index];
-      
-      // 親商品グループ内での移動のみ許可
+      // 次の親商品の位置を特定
+      let nextParentIndex = items.findIndex((item, index) => 
+        index > parentIndex && item.type === 'parent_product'
+      );
+      if (nextParentIndex === -1) nextParentIndex = items.length;
+
+      // 移動可能な範囲をチェック
       if (
-        itemToMove.type === 'child_product' &&
-        result.destination.index > sourceGroup.startIndex &&
-        result.destination.index <= sourceGroup.endIndex
+        destinationIndex <= parentIndex || // 親商品より上には移動不可
+        destinationIndex >= nextParentIndex || // 次の親商品以降には移動不可
+        items[destinationIndex]?.parentId !== parentId // 同じ親商品グループ内でのみ移動可能
       ) {
-        newItems.splice(result.source.index, 1);
-        newItems.splice(result.destination.index, 0, itemToMove);
-
-        const updatedItems = newItems.map((item, index) => ({
-          ...item,
-          groupOrder: index,
-          itemOrder: index
-        }));
-
-        onUpdateItems(updatedItems);
+        return;
       }
+
+      // 子商品の移動を実行
+      const newItems = Array.from(items);
+      newItems.splice(sourceIndex, 1);
+      newItems.splice(destinationIndex, 0, itemToMove);
+
+      const updatedItems = newItems.map((item, index) => ({
+        ...item,
+        groupOrder: index,
+        itemOrder: index
+      }));
+
+      onUpdateItems(updatedItems);
       return;
     }
 
-    // グループ全体の移動
-    const newItems: InvoiceItem[] = [];
-    const remainingGroups = groups.filter((_, index) => index !== sourceIndex);
+    // 親商品の移動
+    if (itemToMove.type === 'parent_product') {
+      // グループの範囲を特定
+      const groupItems = [itemToMove];
+      let nextIndex = sourceIndex + 1;
+      while (nextIndex < items.length && items[nextIndex].type !== 'parent_product') {
+        if (items[nextIndex].parentId === itemToMove.id) {
+          groupItems.push(items[nextIndex]);
+        }
+        nextIndex++;
+      }
 
-    // 移動先の位置までのグループを追加
-    remainingGroups.slice(0, destinationIndex).forEach(group => {
-      group.items.forEach(item => {
-        newItems.push(item);
+      // グループ全体を一時的に削除
+      const itemsWithoutGroup = items.filter((_, index) => {
+        return index < sourceIndex || index >= nextIndex;
       });
-    });
 
-    // 移動するグループを追加
-    sourceGroup.items.forEach(item => {
-      newItems.push(item);
-    });
+      // グループを新しい位置に挿入
+      const newItems = [...itemsWithoutGroup];
+      newItems.splice(destinationIndex, 0, ...groupItems);
 
-    // 残りのグループを追加
-    remainingGroups.slice(destinationIndex).forEach(group => {
-      group.items.forEach(item => {
-        newItems.push(item);
+      // インデックスを更新
+      const updatedItems = newItems.map((item, index) => ({
+        ...item,
+        groupOrder: index,
+        itemOrder: index
+      }));
+
+      onUpdateItems(updatedItems);
+      return;
+    }
+
+    // オプションの移動
+    if (itemToMove.type === 'option') {
+      const newItems = Array.from(items);
+      newItems.splice(sourceIndex, 1);
+
+      // 移動先の親商品を特定
+      let targetParentId: string | undefined = undefined;
+      let isWithinParentGroup = false;
+
+      // 移動先の位置から最も近い親商品を探す
+      for (let i = destinationIndex - 1; i >= 0; i--) {
+        if (newItems[i].type === 'parent_product') {
+          // 次の親商品までの範囲をチェック
+          const nextParentIndex = newItems.findIndex((item, index) => 
+            index > i && item.type === 'parent_product'
+          );
+          
+          if (nextParentIndex === -1 || destinationIndex < nextParentIndex) {
+            targetParentId = newItems[i].id;
+            isWithinParentGroup = true;
+          }
+          break;
+        }
+      }
+
+      // オプションを移動
+      newItems.splice(destinationIndex, 0, {
+        ...itemToMove,
+        parentId: isWithinParentGroup ? targetParentId : undefined
       });
-    });
 
-    // インデックスを更新
-    const updatedItems = newItems.map((item, index) => ({
-      ...item,
-      groupOrder: index,
-      itemOrder: index
-    }));
+      // インデックスを更新
+      const updatedItems = newItems.map((item, index) => ({
+        ...item,
+        groupOrder: index,
+        itemOrder: index
+      }));
 
-    onUpdateItems(updatedItems);
+      onUpdateItems(updatedItems);
+    }
   };
 
   return (
@@ -133,7 +153,7 @@ export default function InvoiceItemList({ items, onRemoveItem, onUpdateItems }: 
         {/* 明細リスト */}
         {items.length === 0 ? (
           <div className="p-4 text-center text-gray-600">
-            明細がありません。右の商品/オプション一覧から項目を選択してください。
+            ���細がありません。右の商品/オプション一覧から項目を選択してください。
           </div>
         ) : (
           <DragDropContext onDragEnd={handleDragEnd}>
@@ -144,77 +164,49 @@ export default function InvoiceItemList({ items, onRemoveItem, onUpdateItems }: 
                   ref={provided.innerRef}
                   className="divide-y divide-gray-200"
                 >
-                  {items.reduce<Array<{ id: string; items: InvoiceItem[] }>>((groups, item, index) => {
-                    if (item.type === 'parent_product') {
-                      // 親商品の場合、新しいグループを作成
-                      const groupItems = [item];
-                      let nextIndex = index + 1;
-                      
-                      // 次の親商品が来るまで、子商品とオプションを収集
-                      while (nextIndex < items.length && items[nextIndex].type !== 'parent_product') {
-                        if (items[nextIndex].parentId === item.id) {
-                          groupItems.push(items[nextIndex]);
-                        }
-                        nextIndex++;
-                      }
-                      
-                      groups.push({ id: item.id, items: groupItems });
-                    } else if (!item.parentId) {
-                      // 親商品に紐付いていない項目は単独でグループ化
-                      groups.push({ id: item.id, items: [item] });
-                    }
-                    return groups;
-                  }, []).map((group, groupIndex) => (
+                  {items.map((item, index) => (
                     <Draggable
-                      key={group.id}
-                      draggableId={group.id}
-                      index={groupIndex}
+                      key={item.id}
+                      draggableId={item.id}
+                      index={index}
                     >
                       {(provided) => (
                         <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
-                          className="group"
+                          className={`
+                            grid grid-cols-12 gap-4 items-center px-4 py-3
+                            ${item.type === 'child_product' || (item.type === 'option' && item.parentId) ? 'ml-6' : ''}
+                            ${item.type === 'option' ? 'bg-gray-50' : 'bg-white'}
+                          `}
                         >
-                          {group.items.map((item, itemIndex) => (
-                            <div
-                              key={item.id}
-                              className={`
-                                grid grid-cols-12 gap-4 items-center px-4 py-3
-                                ${item.type === 'child_product' || (item.type === 'option' && item.parentId) ? 'ml-6' : ''}
-                                ${item.type === 'option' ? 'bg-gray-50' : 'bg-white'}
-                                ${itemIndex === 0 ? 'group-first:border-t-0' : ''}
-                              `}
+                          <div
+                            {...provided.dragHandleProps}
+                            className="col-span-1 cursor-move text-gray-400 hover:text-gray-600"
+                          >
+                            <Bars3Icon className="h-5 w-5" />
+                          </div>
+                          <div className="col-span-4">
+                            <span className="text-gray-900">{item.title}</span>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-gray-600">{item.quantity}</span>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-gray-600">¥{item.unitPrice.toFixed(2)}</span>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-gray-600">¥{(item.quantity * item.unitPrice).toFixed(2)}</span>
+                          </div>
+                          <div className="col-span-1 text-right">
+                            <button
+                              type="button"
+                              onClick={() => onRemoveItem(item.id)}
+                              className="text-red-600 hover:text-red-700"
                             >
-                              <div
-                                {...(itemIndex === 0 ? provided.dragHandleProps : {})}
-                                className="col-span-1 cursor-move text-gray-400 hover:text-gray-600"
-                              >
-                                <Bars3Icon className="h-5 w-5" />
-                              </div>
-                              <div className="col-span-4">
-                                <span className="text-gray-900">{item.title}</span>
-                              </div>
-                              <div className="col-span-2">
-                                <span className="text-gray-600">{item.quantity}</span>
-                              </div>
-                              <div className="col-span-2">
-                                <span className="text-gray-600">¥{item.unitPrice.toFixed(2)}</span>
-                              </div>
-                              <div className="col-span-2">
-                                <span className="text-gray-600">¥{(item.quantity * item.unitPrice).toFixed(2)}</span>
-                              </div>
-                              <div className="col-span-1 text-right">
-                                <button
-                                  type="button"
-                                  onClick={() => onRemoveItem(item.id)}
-                                  className="text-red-600 hover:text-red-700"
-                                >
-                                  削除
-                                </button>
-                              </div>
-                            </div>
-                          ))}
+                              削除
+                            </button>
+                          </div>
                         </div>
                       )}
                     </Draggable>

@@ -119,12 +119,6 @@ export default function InvoiceEditorPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow">
-        <div className="px-4 py-6 mx-auto max-w-[1920px]">
-          <h1 className="text-2xl font-bold text-gray-900">請求書の作成</h1>
-        </div>
-      </div>
-
       <div className="px-4 py-6 mx-auto max-w-[1920px]">
         <div className="grid grid-cols-12 gap-6">
           {/* 左カラム: 基本情報 */}

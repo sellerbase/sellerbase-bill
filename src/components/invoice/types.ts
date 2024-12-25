@@ -63,4 +63,36 @@ export type DroppableProvided = {
   };
   innerRef: (element: HTMLElement | null) => void;
   placeholder?: ReactNode;
+};
+
+// テンプレートの列の型定義
+export type InvoiceColumnType = 
+  | 'title'      // 名目
+  | 'quantity'   // 数量
+  | 'unitPrice'  // 単価
+  | 'subtotal'   // 小計
+  | 'taxRate'    // 税率
+  | 'taxAmount'  // 税額
+  | 'note'       // 備考
+  | 'date'       // 日付
+  | 'category'   // カテゴリ
+  | 'splitRatio' // 分割比率
+  | 'discount'   // 値引き
+  | 'operation'; // 操作
+
+// 列の設定の型定義
+export type InvoiceColumn = {
+  type: InvoiceColumnType;
+  label: string;
+  width: number; // グリッドの列幅（12分割中の値）
+  required?: boolean;
+  format?: (value: any) => string;
+};
+
+// テンプレートの型定義
+export type InvoiceTemplate = {
+  id: string;
+  name: string;
+  description: string;
+  columns: InvoiceColumn[];
 }; 

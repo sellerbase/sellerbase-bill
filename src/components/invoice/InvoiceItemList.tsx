@@ -107,7 +107,7 @@ export default function InvoiceItemList({ items, onRemoveItem, onUpdateItems }: 
       // 移動可能な範囲をチェック
       if (
         destinationIndex <= parentIndex || // 親商品より上には移動不可
-        destinationIndex >= nextParentIndex || // 次の親商品以降に��移動不可
+        destinationIndex >= nextParentIndex || // 次の親商品以降に移動不可
         items[destinationIndex]?.parentId !== parentId // 同じ親商品グループ内でのみ移動可能
       ) {
         return;
@@ -200,19 +200,19 @@ export default function InvoiceItemList({ items, onRemoveItem, onUpdateItems }: 
 
       // 移動先の親商品を特定
       let targetParentId: string | undefined = undefined;
-      let isWithinParentGroup = false;
 
-      // 移動先の位置から最も近い親商品を探す
+      // 移動先の位置から最も近い親商品とその範囲を探す
       for (let i = destinationIndex - 1; i >= 0; i--) {
         if (newItems[i].type === 'parent_product') {
-          // 次の親商品までの範囲をチェック
-          const nextParentIndex = newItems.findIndex((item, index) => 
+          const currentParentId = newItems[i].id;
+          // この親商品の範囲の終わりを見つける
+          const groupEndIndex = newItems.findIndex((item, index) => 
             index > i && item.type === 'parent_product'
           );
           
-          if (nextParentIndex === -1 || destinationIndex < nextParentIndex) {
-            targetParentId = newItems[i].id;
-            isWithinParentGroup = true;
+          // 移動先が親商品グループの範囲内にある場合
+          if (groupEndIndex === -1 || destinationIndex <= groupEndIndex) {
+            targetParentId = currentParentId;
           }
           break;
         }
@@ -221,12 +221,33 @@ export default function InvoiceItemList({ items, onRemoveItem, onUpdateItems }: 
       // オプションを移動
       newItems.splice(destinationIndex, 0, {
         ...itemToMove,
-        parentId: isWithinParentGroup ? targetParentId : undefined
+        parentId: targetParentId // 親商品グループ内に移動した場合のみ紐付け
       });
 
       // インデックスを更新
       const updatedItems = newItems.map((item, index) => ({
         ...item,
+        groupOrder: index,
+        itemOrder: index
+      }));
+
+      onUpdateItems(updatedItems);
+      return;
+    }
+  };
+
+  // オプションのグループ解除を処理する関数
+  const handleUngroup = (item: InvoiceItem) => {
+    if (item.type === 'option' && item.parentId) {
+      // 一旦対象のオプションを除外
+      const itemsWithoutOption = items.filter(currentItem => currentItem.id !== item.id);
+      
+      // グループ解除したオプションを最後に追加
+      const updatedItems = [
+        ...itemsWithoutOption,
+        { ...item, parentId: undefined }
+      ].map((currentItem, index) => ({
+        ...currentItem,
         groupOrder: index,
         itemOrder: index
       }));
@@ -287,6 +308,7 @@ export default function InvoiceItemList({ items, onRemoveItem, onUpdateItems }: 
                           <div
                             {...provided.dragHandleProps}
                             className="col-span-1 cursor-move text-gray-400 hover:text-gray-600"
+                            onDoubleClick={() => handleUngroup(item)}
                           >
                             <Bars3Icon className="h-5 w-5" />
                           </div>

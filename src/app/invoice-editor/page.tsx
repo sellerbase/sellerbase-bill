@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { InvoiceItem } from '@/components/invoice/types';
 import { useInvoiceTotals } from '@/hooks/useInvoiceTotals';
 import InvoiceTotals from '@/components/invoice/InvoiceTotals';
+import DraftListPanel from '@/components/invoice/DraftListPanel';
 
 export default function InvoiceEditorPage() {
   const [showBreakdown, setShowBreakdown] = useState(false);
@@ -121,11 +122,12 @@ export default function InvoiceEditorPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <DraftListPanel />
       <div className="px-4 py-6 mx-auto max-w-[1920px]">
         <div className="grid grid-cols-12 gap-6">
           {/* 左カラム: 基本情報 */}
           <div className="col-span-2">
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-lg shadow p-6 ml-8">
               <h2 className="text-xl font-bold text-gray-900 mb-6">基本情報</h2>
               <BasicInfoForm />
             </div>

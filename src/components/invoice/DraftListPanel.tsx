@@ -35,13 +35,23 @@ export default function DraftListPanel() {
         <button
           type="button"
           className={`
-            flex flex-col items-center py-4 px-1 bg-white rounded-r-lg shadow-lg
-            hover:bg-gray-50 transition-all duration-200 gap-1
+            relative flex flex-col items-center py-16 px-2
+            transition-all duration-200 gap-6 group
             ${isOpen ? 'translate-x-[240px]' : 'translate-x-0'}
           `}
         >
-          <DocumentDuplicateIcon className="w-5 h-5 text-gray-600" />
-          <span className="text-xs text-gray-700 writing-mode-vertical">下書き一覧</span>
+          <div className="
+            absolute inset-0 bg-gradient-to-r from-indigo-600 to-blue-500
+            clip-path-trapezoid shadow-lg transition-colors duration-200
+            group-hover:from-indigo-500 group-hover:to-blue-400
+          "></div>
+          <div className="
+            absolute inset-0 bg-gradient-to-r from-indigo-600/50 to-blue-500/50
+            clip-path-trapezoid blur-sm transition-colors duration-200
+            group-hover:from-indigo-500/50 group-hover:to-blue-400/50
+          "></div>
+          <DocumentDuplicateIcon className="w-5 h-5 text-white relative z-10" />
+          <span className="text-sm text-white relative z-10 writing-mode-vertical font-medium tracking-wider">下書き一覧</span>
         </button>
       </div>
 
@@ -85,6 +95,12 @@ export default function DraftListPanel() {
           writing-mode: vertical-rl;
           text-orientation: upright;
           white-space: nowrap;
+          letter-spacing: 0.1em;
+        }
+        .clip-path-trapezoid {
+          clip-path: polygon(0 0, 100% 15%, 100% 85%, 0 100%);
+          border-top-right-radius: 8px;
+          border-bottom-right-radius: 8px;
         }
       `}</style>
     </>

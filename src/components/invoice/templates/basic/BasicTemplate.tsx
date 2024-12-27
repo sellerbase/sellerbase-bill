@@ -16,7 +16,7 @@ export default function BasicTemplate({
     handleItemChange,
     inputBaseStyle,
     renderDraggableItem,
-  } = useInvoiceTemplate(items, onUpdateItems, onRemoveItem);
+  } = useInvoiceTemplate(items, onUpdateItems, onRemoveItem, 'basic');
 
   const columns = [
     { type: 'title' as const, label: '名目', width: 180, required: true },

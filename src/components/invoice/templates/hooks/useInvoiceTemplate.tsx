@@ -8,11 +8,12 @@ import { useDragAndDrop } from '../../hooks/useDragAndDrop';
 import { useOptionUngroup } from '../../hooks/useOptionUngroup';
 import { useInvoiceTotals } from '../../../../hooks/useInvoiceTotals';
 
-export const useInvoiceTemplate = (
+export function useInvoiceTemplate(
   items: InvoiceItem[],
   onUpdateItems: (items: InvoiceItem[]) => void,
-  onRemoveItem: (id: string) => void
-) => {
+  onRemoveItem: (id: string) => void,
+  templateId: string
+) {
   const [openNotes, setOpenNotes] = useState<{ [key: string]: boolean }>({});
 
   const toggleNotes = (id: string) => {
@@ -25,7 +26,7 @@ export const useInvoiceTemplate = (
   const { getItemColor } = useColorMap(items);
   const { handleDragEnd } = useDragAndDrop(items, onUpdateItems);
   const { handleUngroup } = useOptionUngroup(items, onUpdateItems);
-  const totals = useInvoiceTotals(items);
+  const totals = useInvoiceTotals(items, templateId);
 
   const inputBaseStyle = "w-full px-2 py-1 text-sm border border-gray-200 rounded-md focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500";
 
@@ -124,9 +125,10 @@ export const useInvoiceTemplate = (
                             );
                           case 'subtotal':
                             const itemSubtotal = item.quantity * item.unitPrice;
-                            const itemTaxRate = item.taxRate || 0.1;
-                            const itemSplitRatio = item.splitRatio || 1;
-                            const itemTotalWithTax = itemSubtotal * (1 + itemTaxRate);
+                            const itemTaxRate = templateId === 'with-tax' ? (item.taxRate || 0) : 0;
+                            const itemSplitRatio = templateId === 'split-payment' ? (item.splitRatio || 1) : 1;
+                            const itemTaxAmount = itemSubtotal * (itemTaxRate / 100);
+                            const itemTotalWithTax = itemSubtotal + itemTaxAmount;
                             const itemSplitAmount = itemTotalWithTax * itemSplitRatio;
                             return (
                               <div key={column.type} className="px-2 py-1 text-right">
@@ -138,8 +140,8 @@ export const useInvoiceTemplate = (
                               <div key={column.type}>
                                 <input
                                   type="number"
-                                  value={((item.taxRate || 0.1) * 100).toFixed(0)}
-                                  onChange={(e) => handleItemChange(item.id, 'taxRate', Number(e.target.value) / 100)}
+                                  value={item.taxRate || 0}
+                                  onChange={(e) => handleItemChange(item.id, 'taxRate', Number(e.target.value))}
                                   onFocus={(e) => e.target.select()}
                                   className={`${inputBaseStyle} text-gray-600 text-right`}
                                   min="0"
@@ -221,4 +223,4 @@ export const useInvoiceTemplate = (
     inputBaseStyle,
     renderDraggableItem,
   };
-}; 
+} 

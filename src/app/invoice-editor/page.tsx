@@ -6,11 +6,13 @@ import ItemSelector from '@/components/invoice/ItemSelector';
 import { useState } from 'react';
 import { InvoiceItem } from '@/components/invoice/types';
 import { useInvoiceTotals } from '@/hooks/useInvoiceTotals';
+import InvoiceTotals from '@/components/invoice/InvoiceTotals';
 
 export default function InvoiceEditorPage() {
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [items, setItems] = useState<InvoiceItem[]>([]);
-  const totals = useInvoiceTotals(items);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('basic');
+  const totals = useInvoiceTotals(items, selectedTemplateId);
 
   const handleSelectItem = (newItems: Array<{
     id: string;
@@ -133,97 +135,14 @@ export default function InvoiceEditorPage() {
           <div className="col-span-7">
             <div className="bg-white rounded-lg shadow p-6">
               {/* 合計金額表示エリア */}
-              <div className="mb-6 bg-gray-50 rounded-lg p-4">
-                <div className="mb-2">
-                  <h3 className="text-base font-semibold text-gray-900">合計金額</h3>
-                </div>
-                
-                {/* 合計金額 - 3通貨表示 */}
-                <div className="grid grid-cols-3 gap-3 mb-2">
-                  <div className="bg-white p-2 rounded-md shadow-sm">
-                    <div className="text-xs text-gray-600 mb-0.5">CNY（メイン）</div>
-                    <div className="text-lg font-bold text-gray-900">{totals.formatCurrency(totals.totalWithTax)}</div>
-                  </div>
-                  <div className="bg-white p-2 rounded-md shadow-sm">
-                    <div className="text-xs text-gray-600 mb-0.5">USD</div>
-                    <div className="text-lg font-bold text-gray-900">{totals.formatCurrency(totals.totalWithTax * 0.14)}</div>
-                  </div>
-                  <div className="bg-white p-2 rounded-md shadow-sm">
-                    <div className="text-xs text-gray-600 mb-0.5">JPY</div>
-                    <div className="text-lg font-bold text-gray-900">{totals.formatCurrency(totals.totalWithTax * 20.27)}</div>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setShowBreakdown(!showBreakdown)}
-                  className="text-xs text-blue-600 hover:text-blue-700 font-medium inline-flex items-center"
-                >
-                  内訳
-                  <svg
-                    className={`ml-1 h-3 w-3 transform transition-transform ${showBreakdown ? 'rotate-180' : ''}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-
-                {/* カテゴリ別内訳（デフォルトは非表示） */}
-                {showBreakdown && (
-                  <div className="mt-2">
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="bg-white p-2 rounded-md shadow-sm">
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-gray-600">商品</span>
-                          <span className="font-medium text-gray-900">
-                            {totals.formatCurrency(totals.product)}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="bg-white p-2 rounded-md shadow-sm">
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-gray-600">検品</span>
-                          <span className="font-medium text-gray-900">
-                            {totals.formatCurrency(totals.inspection)}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="bg-white p-2 rounded-md shadow-sm">
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-gray-600">作業</span>
-                          <span className="font-medium text-gray-900">
-                            {totals.formatCurrency(totals.work)}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="bg-white p-2 rounded-md shadow-sm">
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-gray-600">包装</span>
-                          <span className="font-medium text-gray-900">
-                            {totals.formatCurrency(totals.packaging)}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="bg-white p-2 rounded-md shadow-sm">
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-gray-600">運送</span>
-                          <span className="font-medium text-gray-900">
-                            {totals.formatCurrency(totals.shipping)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <InvoiceTotals items={items} templateId={selectedTemplateId} />
 
               {/* 明細リスト */}
               <InvoiceItemList
                 items={items}
                 onRemoveItem={handleRemoveItem}
                 onUpdateItems={setItems}
+                onTemplateChange={setSelectedTemplateId}
               />
             </div>
           </div>

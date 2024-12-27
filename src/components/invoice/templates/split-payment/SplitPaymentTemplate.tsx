@@ -16,7 +16,7 @@ export default function SplitPaymentTemplate({
     handleItemChange,
     inputBaseStyle,
     renderDraggableItem,
-  } = useInvoiceTemplate(items, onUpdateItems, onRemoveItem);
+  } = useInvoiceTemplate(items, onUpdateItems, onRemoveItem, 'split-payment');
 
   const columns = [
     { type: 'title' as const, label: '名目', width: 180, required: true },

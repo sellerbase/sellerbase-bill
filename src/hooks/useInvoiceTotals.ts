@@ -14,14 +14,16 @@ type InvoiceTotals = {
   formatCurrency: (amount: number) => string;
 };
 
-export const useInvoiceTotals = (items: InvoiceItem[]): InvoiceTotals => {
+export const useInvoiceTotals = (items: InvoiceItem[], templateId?: string): InvoiceTotals => {
   return useMemo(() => {
     // カテゴリ別の集計を行う
     const categoryTotals = items.reduce((acc, item) => {
       const subtotal = item.quantity * item.unitPrice;
-      const taxRate = item.taxRate || 0.1;
-      const splitRatio = item.splitRatio || 1;
-      const taxAmount = subtotal * taxRate;
+      // 税込テンプレートの場合のみ税率を計算
+      const taxRate = templateId === 'with-tax' ? (item.taxRate || 0) : 0;
+      // 分割支払いテンプレートの場合のみ分割比率を適用
+      const splitRatio = templateId === 'split-payment' ? (item.splitRatio || 1) : 1;
+      const taxAmount = subtotal * (taxRate / 100);
       const totalWithTax = subtotal + taxAmount;
       const splitAmount = totalWithTax * splitRatio;
 
@@ -64,10 +66,14 @@ export const useInvoiceTotals = (items: InvoiceItem[]): InvoiceTotals => {
       splitTotal: 0
     });
 
+    // 分割支払いテンプレートの場合は分割金額を合計として返す
+    const finalTotal = templateId === 'split-payment' ? categoryTotals.splitTotal : categoryTotals.totalWithTax;
+
     return {
       ...categoryTotals,
+      totalWithTax: finalTotal,
       // 金額を整形するヘルパー関数
       formatCurrency: (amount: number) => `¥${amount.toFixed(2)}`
     };
-  }, [items]);
+  }, [items, templateId]);
 }; 

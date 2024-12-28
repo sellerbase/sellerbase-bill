@@ -71,7 +71,7 @@ export function useDragAndDrop(
         return; // 他の親商品の子商品の間への移動は不可
       }
 
-      // 移���先の前後の親商品を確認
+      // 移動先の前後の親商品を確認
       let prevParentIndex = -1;
       let nextParentIndex = items.length;
 

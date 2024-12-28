@@ -48,6 +48,7 @@ export interface InvoiceItem {
   groupOrder: number;
   itemOrder: number;
   taxRate?: number;
+  _originalId?: string;
 }
 
 export interface InvoiceDraft {

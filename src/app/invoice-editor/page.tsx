@@ -63,7 +63,7 @@ export default function InvoiceEditorPage() {
       });
     } catch (error) {
       console.error('関連データの取得に失敗しました:', error);
-      alert('関連デ���タの取得に失敗しました');
+      alert('関連データの取得に失敗しました');
     }
   };
 
@@ -81,8 +81,13 @@ export default function InvoiceEditorPage() {
 
     // 新しい項目を処理
     const itemsToAdd = newItems.map(item => {
+      // オプションの場合は一意のIDを生成
+      const itemId = item.type === 'option' ? 
+        `${item.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : 
+        item.id;
+
       const baseItem: InvoiceItem = {
-        id: item.id,
+        id: itemId,
         title: item.title,
         quantity: 1,
         unitPrice: item.price,

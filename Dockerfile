@@ -1,14 +1,22 @@
-FROM node:20-slim
+FROM node:20-alpine
 
 WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm install --legacy-peer-deps
-RUN npm install @heroicons/react@2.0.18 --legacy-peer-deps
+RUN npm install
+RUN npm install @supabase/ssr @headlessui/react
 
 COPY . .
 
-EXPOSE 3000
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+RUN npm run build
+
+EXPOSE 3001
 
 CMD ["npm", "run", "dev"]

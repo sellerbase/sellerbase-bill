@@ -1,4 +1,7 @@
 import { CSSProperties, ReactNode } from 'react';
+import { InvoiceItem as BaseInvoiceItem, Company as BaseCompany, PaymentMethod as BasePaymentMethod } from '@/types/invoice';
+
+export type { BaseInvoiceItem as InvoiceItem, BaseCompany as Company, BasePaymentMethod as PaymentMethod };
 
 // 親商品（グループ）の型
 export type ParentProduct = {
@@ -21,22 +24,6 @@ export type Option = {
   name: string;
   price: number;
   category: string;
-};
-
-// 明細項目の型
-export type InvoiceItem = {
-  id: string;
-  type: 'parent_product' | 'child_product' | 'option';
-  title: string;
-  quantity: number;
-  unitPrice: number;
-  taxRate?: number;
-  splitRatio?: number;
-  notes?: string;
-  groupOrder: number;
-  itemOrder: number;
-  parentId?: string;
-  remainingAmount?: number;
 };
 
 // ドラッグ&ドロップのドロップ位置の型

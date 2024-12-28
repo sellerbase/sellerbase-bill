@@ -1,10 +1,77 @@
 import { useState, useCallback, useEffect } from 'react';
-import { DocumentDuplicateIcon } from '@heroicons/react/24/outline';
+import { DocumentDuplicateIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { getSupabaseBrowserClient } from '@/lib/supabase';
+import { format } from 'date-fns';
+import { ja } from 'date-fns/locale';
 
-export default function DraftListPanel() {
+type InvoiceDraft = {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  items: any[];
+  template_id: string;
+  sender_id?: string;
+  recipient_id?: string;
+  payment_method_id?: string;
+  issue_date?: string;
+  payment_deadline?: string;
+};
+
+interface DraftListPanelProps {
+  onLoadDraft: (draft: InvoiceDraft) => void;
+}
+
+export default function DraftListPanel({ onLoadDraft }: DraftListPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isMouseInPanel, setIsMouseInPanel] = useState(false);
   const [isMouseInButton, setIsMouseInButton] = useState(false);
+  const [drafts, setDrafts] = useState<InvoiceDraft[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchDrafts = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/drafts');
+      if (!response.ok) throw new Error('下書きの取得に失敗しました');
+      const data = await response.json();
+      setDrafts(data);
+    } catch (error) {
+      console.error('下書きの取得に失敗しました:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteDraft = async (id: string) => {
+    if (!window.confirm('この下書きを削除してもよろしいですか？')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/drafts/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('下書きの削除に失敗しました');
+      await fetchDrafts();
+    } catch (error) {
+      console.error('下書きの削除に失敗しました:', error);
+      alert('下書きの削除に失敗しました');
+    }
+  };
+
+  const handleLoadDraft = async (id: string) => {
+    try {
+      const response = await fetch(`/api/drafts/${id}`);
+      if (!response.ok) throw new Error('下書きの読み込みに失敗しました');
+      const data = await response.json();
+      onLoadDraft(data);
+      setIsOpen(false);
+    } catch (error) {
+      console.error('下書きの読み込みに失敗しました:', error);
+      alert('下書きの読み込みに失敗しました');
+    }
+  };
 
   const handleMouseLeave = useCallback(() => {
     if (!isMouseInPanel && !isMouseInButton) {
@@ -18,6 +85,12 @@ export default function DraftListPanel() {
   useEffect(() => {
     handleMouseLeave();
   }, [isMouseInPanel, isMouseInButton, handleMouseLeave]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchDrafts();
+    }
+  }, [isOpen]);
 
   return (
     <>
@@ -72,19 +145,46 @@ export default function DraftListPanel() {
           <div className="p-4">
             <h2 className="text-lg font-bold text-gray-900 mb-4">下書き一覧</h2>
             <div className="space-y-2">
-              {/* 下書きリストのプレースホルダー */}
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse"></div>
-                <div className="h-3 w-1/2 bg-gray-200 rounded mt-2 animate-pulse"></div>
-              </div>
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse"></div>
-                <div className="h-3 w-1/2 bg-gray-200 rounded mt-2 animate-pulse"></div>
-              </div>
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse"></div>
-                <div className="h-3 w-1/2 bg-gray-200 rounded mt-2 animate-pulse"></div>
-              </div>
+              {isLoading ? (
+                // ローディングプレースホルダー
+                Array.from({ length: 3 }).map((_, index) => (
+                  <div key={index} className="p-3 bg-gray-50 rounded-lg animate-pulse">
+                    <div className="h-4 w-3/4 bg-gray-200 rounded"></div>
+                    <div className="h-3 w-1/2 bg-gray-200 rounded mt-2"></div>
+                  </div>
+                ))
+              ) : drafts.length > 0 ? (
+                drafts.map((draft) => (
+                  <div
+                    key={draft.id}
+                    className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200"
+                  >
+                    <div className="flex justify-between items-start">
+                      <button
+                        onClick={() => handleLoadDraft(draft.id)}
+                        className="flex-1 text-left"
+                      >
+                        <h3 className="font-medium text-gray-900 line-clamp-1">
+                          {draft.title}
+                        </h3>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {format(new Date(draft.updated_at), 'yyyy年MM月dd日 HH:mm', { locale: ja })}
+                        </p>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteDraft(draft.id)}
+                        className="p-1 text-gray-400 hover:text-red-500 transition-colors duration-200"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-center text-gray-500 py-4">
+                  下書きはありません
+                </p>
+              )}
             </div>
           </div>
         </div>
